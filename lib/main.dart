@@ -1,8 +1,284 @@
-
+import 'package:audio_service/audio_service.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:untitled/page_manager.dart';
+import 'package:untitled/services/service_locator.dart';
 
+import 'notifiers/play_button_notifier.dart';
+import 'notifiers/progress_notifier.dart';
+import 'notifiers/repeat_button_notifier.dart';
+
+Future<void> main() async {
+  await setupServiceLocator();
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: HomeScreen(),
+    );
+  }
+}
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+
+  // final _audioHandler = getIt<AudioHandler>();
+  // final controller = Get.put(AudioManager());
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    getIt<PageManager>().init();
+  }
+
+
+  @override
+  void dispose() {
+    getIt<PageManager>().dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pageManager = getIt<PageManager>();
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Music Player')
+      ),
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          CurrentSongImage(),
+          // Image.network(pageManager.),
+          TextButton(onPressed: (){
+            getIt<PageManager>().stop();
+          }, child: const Text('Close')),
+          const AudioProgressBar(),
+          const AudioControlButtons(),
+        ],
+      ).marginOnly(left: 20, right: 20)
+    );
+  }
+}
+
+class CurrentSongImage extends StatelessWidget {
+  const CurrentSongImage({Key? key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    final pageManager = getIt<PageManager>();
+    return ValueListenableBuilder<String>(
+      valueListenable: pageManager.currentSongImageNotifier,
+      builder: (_, title, __) {
+        return Padding(
+          padding: const EdgeInsets.only(top: 8.0),
+          child: Image.network(title, errorBuilder: (context, stack, image){
+            return Image.network('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTvH6PyrTelDxGYwhABBdicwc8yrVSXi31CpP0GwEPwb7ykWJnNwKLfFuP6DNq2cTuvZM0&usqp=CAU');
+          })
+
+          // Text(title, style: const TextStyle(fontSize: 40)),
+        );
+      },
+    );
+  }
+}
+
+
+class AudioProgressBar extends StatelessWidget {
+  const AudioProgressBar({Key? key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    final pageManager = getIt<PageManager>();
+    return ValueListenableBuilder<ProgressBarState>(
+      valueListenable: pageManager.progressNotifier,
+      builder: (_, value, __) {
+        return ProgressBar(
+          progress: value.current,
+          buffered: value.buffered,
+          total: value.total,
+          onSeek: pageManager.seek,
+        );
+      },
+    );
+  }
+}
+
+class AudioControlButtons extends StatelessWidget {
+  const AudioControlButtons({Key? key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 60,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: const [
+          RepeatButton(),
+          PreviousSongButton(),
+          PlayButton(),
+          NextSongButton(),
+          ShuffleButton(),
+        ],
+      ),
+    );
+  }
+}
+
+class RepeatButton extends StatelessWidget {
+  const RepeatButton({Key? key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    final pageManager = getIt<PageManager>();
+    return ValueListenableBuilder<RepeatState>(
+      valueListenable: pageManager.repeatButtonNotifier,
+      builder: (context, value, child) {
+        Icon icon;
+        switch (value) {
+          case RepeatState.off:
+            icon = const Icon(Icons.repeat, color: Colors.grey);
+            break;
+          case RepeatState.repeatSong:
+            icon = const Icon(Icons.repeat_one);
+            break;
+          case RepeatState.repeatPlaylist:
+            icon = const Icon(Icons.repeat);
+            break;
+        }
+        return IconButton(
+          icon: icon,
+          onPressed: pageManager.repeat,
+        );
+      },
+    );
+  }
+}
+
+class PreviousSongButton extends StatelessWidget {
+  const PreviousSongButton({Key? key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    final pageManager = getIt<PageManager>();
+    return ValueListenableBuilder<bool>(
+      valueListenable: pageManager.isFirstSongNotifier,
+      builder: (_, isFirst, __) {
+        return IconButton(
+          icon: const Icon(Icons.skip_previous),
+          onPressed: (isFirst) ? null : pageManager.previous,
+        );
+      },
+    );
+  }
+}
+
+class PlayButton extends StatelessWidget {
+  const PlayButton({Key? key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    final pageManager = getIt<PageManager>();
+    return ValueListenableBuilder<ButtonState>(
+      valueListenable: pageManager.playButtonNotifier,
+      builder: (_, value, __) {
+        switch (value) {
+          case ButtonState.loading:
+            return Container(
+              margin: const EdgeInsets.all(8.0),
+              width: 32.0,
+              height: 32.0,
+              child: const CircularProgressIndicator(),
+            );
+          case ButtonState.paused:
+            return IconButton(
+              icon: const Icon(Icons.play_arrow),
+              iconSize: 32.0,
+              onPressed: pageManager.play,
+            );
+          case ButtonState.playing:
+            return IconButton(
+              icon: const Icon(Icons.pause),
+              iconSize: 32.0,
+              onPressed: pageManager.pause,
+            );
+        }
+      },
+    );
+  }
+}
+
+class NextSongButton extends StatelessWidget {
+  const NextSongButton({Key? key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    final pageManager = getIt<PageManager>();
+    return ValueListenableBuilder<bool>(
+      valueListenable: pageManager.isLastSongNotifier,
+      builder: (_, isLast, __) {
+        return IconButton(
+          icon: const Icon(Icons.skip_next),
+          onPressed: (isLast) ? null : pageManager.next,
+        );
+      },
+    );
+  }
+}
+
+class ShuffleButton extends StatelessWidget {
+  const ShuffleButton({Key? key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    final pageManager = getIt<PageManager>();
+    return ValueListenableBuilder<bool>(
+      valueListenable: pageManager.isShuffleModeEnabledNotifier,
+      builder: (context, isEnabled, child) {
+        return IconButton(
+          icon: (isEnabled)
+              ? const Icon(Icons.shuffle)
+              : const Icon(Icons.shuffle, color: Colors.grey),
+          onPressed: pageManager.shuffle,
+        );
+      },
+    );
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:untitled/page_manager.dart';
 import 'package:untitled/services/service_locator.dart';
 
 import 'notifiers/play_button_notifier.dart';
@@ -274,7 +550,25 @@ class ShuffleButton extends StatelessWidget {
   }
 }
 
-/*class MyApp extends StatefulWidget {
+
+/// Working Fine Code
+*/
+/*
+import 'dart:developer';
+import 'dart:math' as math;
+
+import 'package:audio_session/audio_session.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart' as getx;
+import 'package:just_audio/just_audio.dart';
+import 'package:rxdart/rxdart.dart';
+import 'package:untitled/second_screen.dart';
+import 'package:untitled/services/service_locator.dart';
+
+import 'notifiers/repeat_button_notifier.dart';
+
+class MyApp extends StatefulWidget {
+
   const MyApp({Key? key}) : super(key: key);
 
   @override
@@ -332,6 +626,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _player = AudioPlayer();
+  final RepeatButtonController _controller = getx.Get.put(RepeatButtonController());
+
 
   @override
   void initState() {
@@ -419,6 +715,41 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                     child: const Text('Click')),
+                Center(
+                  child: getx.Obx(() {
+                    Icon icon;
+                    switch (_controller.state.value) {
+                      case RepeatState.off:
+                        icon = const Icon(Icons.repeat, color: Colors.grey);
+                        break;
+                      case RepeatState.repeatSong:
+                        icon = const Icon(Icons.repeat_one);
+                        break;
+                      case RepeatState.repeatPlaylist:
+                        icon = const Icon(Icons.repeat);
+                        break;
+                    }
+                    return IconButton(
+                      icon: icon,
+                      onPressed: () async {
+                        _controller.nextState();
+                        print('Current State --- > ${_controller.state.value}');
+                        switch (_controller.state.value) {
+                          case RepeatState.off:
+                            await _player.setLoopMode(LoopMode.off);
+                            break;
+                          case RepeatState.repeatSong:
+                            await _player.setLoopMode(LoopMode.one);
+                            break;
+                          case RepeatState.repeatPlaylist:
+                            await _player.setLoopMode(LoopMode.all);
+                            break;
+                        }
+                      },
+                    );
+                  }),
+                ),
+
                 IconButton(
                     onPressed: () async {
                       if (_player.loopMode == LoopMode.all) {
@@ -733,7 +1064,6 @@ void showSliderDialog({
 }
 
 T? ambiguate<T>(T? value) => value;*/
-
 /*
 import 'package:flutter/material.dart';
 import 'package:intl_phone_number_input/intl_phone_number_input.dart';
@@ -1048,3 +1378,4 @@ class _MyHomePageState extends State<MyHomePage> {
 //   }
 // }
 */
+

@@ -25,7 +25,7 @@ class DemoPlaylist extends PlaylistRepository {
       'title': 'Song $_songIndex',
       'album': 'SoundHelix',
       'url':
-      'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-$_songIndex.mp3',
+      'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
     };
   }
 }

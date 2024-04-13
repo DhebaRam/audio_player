@@ -45,6 +45,7 @@ dependencies:
   intl_phone_number_input: ^0.7.3+1
   rxdart: ^0.27.7
   audio_session: ^0.1.19
+  get: ^4.6.6
 
 
 
