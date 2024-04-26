@@ -5,12 +5,98 @@ import 'notifiers/repeat_button_notifier.dart';
 import 'package:audio_service/audio_service.dart';
 import 'services/playlist_repository.dart';
 import 'services/service_locator.dart';
-
+List<MediaItem> songList = [
+  MediaItem(
+    id: 'https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3',
+    album: 'XYZ',
+    title: 'title',
+    artUri: Uri.parse('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRIcm62olyo-OUTS6uoFbUFpBaOOjTxbL7Iqw&s'),
+    extras: {
+      'url': 'https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3'
+    },
+  ),
+  MediaItem(
+    id: 'https://www.learningcontainer.com/wp-content/uploads/2020/02/Kalimba.mp3',
+    album: 'ABC',
+    title: 'title1',
+    artUri: Uri.parse('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTvH6PyrTelDxGYwhABBdicwc8yrVSXi31CpP0GwEPwb7ykWJnNwKLfFuP6DNq2cTuvZM0&usqp=CAU'),
+    extras: {
+      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3'
+    },
+  ),
+  MediaItem(
+    id: 'https://commondatastorage.googleapis.com/codeskulptor-assets/sounddogs/explosion.mp3',
+    album: 'AB',
+    title: 'title2',
+    artUri: Uri.parse('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTvH6PyrTelDxGYwhABBdicwc8yrVSXi31CpP0GwEPwb7ykWJnNwKLfFuP6DNq2cTuvZM0&usqp=CAU'),
+    extras: {
+      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+      'title': 'new'
+    },
+  ),
+  MediaItem(
+    id: 'https://codeskulptor-demos.commondatastorage.googleapis.com/descent/background%20music.mp3',
+    album: 'AB',
+    title: 'title3',
+    artUri: Uri.parse('https://example.com/art.jpg'),
+    extras: {
+      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+      'title': 'new1'
+    },
+  ),
+  MediaItem(
+    id: 'https://codeskulptor-demos.commondatastorage.googleapis.com/descent/gotitem.mp3',
+    album: 'AB',
+    title: 'title4',
+    artUri: Uri.parse('https://example.com/art.jpg'),
+    extras: {
+      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+      'title': 'new'
+    },
+  ),
+  MediaItem(
+    id: 'https://codeskulptor-demos.commondatastorage.googleapis.com/descent/Zombie.mp3',
+    album: 'AB',
+    title: 'title5',
+    artUri: Uri.parse('https://example.com/art.jpg'),
+    extras: {
+      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3'
+    },
+  ),
+  MediaItem(
+    id: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3',
+    album: 'AB',
+    title: 'title6',
+    artUri: Uri.parse('https://example.com/art.jpg'),
+    extras: {
+      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3'
+    },
+  ),
+  MediaItem(
+    id: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-14.mp3',
+    album: 'AB',
+    title: 'title7',
+    artUri: Uri.parse('https://example.com/art.jpg'),
+    extras: {
+      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-14.mp3'
+    },
+  ),
+  MediaItem(
+    id: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-15.mp3',
+    album: 'AB',
+    title: 'title8',
+    artUri: Uri.parse('https://example.com/art.jpg'),
+    extras: {
+      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-15.mp3'
+    },
+  ),
+];
 class PageManager {
   // Listeners: Updates going to the UI
   final currentSongTitleNotifier = ValueNotifier<String>('');
+  final currentSongIdNotifier = ValueNotifier<String>('');
   final currentSongImageNotifier = ValueNotifier<String>('');
-  final playlistNotifier = ValueNotifier<List<String>>([]);
+  final playlistNotifier = ValueNotifier<List<MediaItem>>([]);
   final progressNotifier = ProgressNotifier();
   final repeatButtonNotifier = RepeatButtonNotifier();
   final isFirstSongNotifier = ValueNotifier<bool>(true);
@@ -43,62 +129,7 @@ class PageManager {
     //         ))
     //     .toList();
 
-    List<MediaItem> songList = [
-      MediaItem(
-        id: 'https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3',
-        album: 'XYZ',
-        title: 'title',
-        artUri: Uri.parse('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRIcm62olyo-OUTS6uoFbUFpBaOOjTxbL7Iqw&s'),
-        extras: {
-          'url': 'https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3'
-        },
-      ),
-      MediaItem(
-        id: 'https://www.learningcontainer.com/wp-content/uploads/2020/02/Kalimba.mp3',
-        album: 'ABC',
-        title: 'title1',
-        artUri: Uri.parse('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTvH6PyrTelDxGYwhABBdicwc8yrVSXi31CpP0GwEPwb7ykWJnNwKLfFuP6DNq2cTuvZM0&usqp=CAU'),
-        extras: {
-          'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3'
-        },
-      ),
-      MediaItem(
-        id: 'https://commondatastorage.googleapis.com/codeskulptor-assets/sounddogs/explosion.mp3',
-        album: 'AB',
-        title: 'title2',
-        artUri: Uri.parse('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTvH6PyrTelDxGYwhABBdicwc8yrVSXi31CpP0GwEPwb7ykWJnNwKLfFuP6DNq2cTuvZM0&usqp=CAU'),
-        extras: {
-          'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3'
-        },
-      ),
-      MediaItem(
-        id: 'https://codeskulptor-demos.commondatastorage.googleapis.com/descent/background%20music.mp3',
-        album: 'AB',
-        title: 'title2',
-        artUri: Uri.parse('https://example.com/art.jpg'),
-        extras: {
-          'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3'
-        },
-      ),
-      MediaItem(
-        id: 'https://codeskulptor-demos.commondatastorage.googleapis.com/descent/gotitem.mp3',
-        album: 'AB',
-        title: 'title2',
-        artUri: Uri.parse('https://example.com/art.jpg'),
-        extras: {
-          'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3'
-        },
-      ),
-      MediaItem(
-        id: 'https://codeskulptor-demos.commondatastorage.googleapis.com/descent/Zombie.mp3',
-        album: 'AB',
-        title: 'title2',
-        artUri: Uri.parse('https://example.com/art.jpg'),
-        extras: {
-          'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3'
-        },
-      )
-    ];
+
     _audioHandler.addQueueItems(songList);
     print('_audioHandler Length---> ${_audioHandler.queue.value.length}');
   }
@@ -108,8 +139,9 @@ class PageManager {
       if (playlist.isEmpty) {
         playlistNotifier.value = [];
         currentSongTitleNotifier.value = '';
+        currentSongIdNotifier.value = '';
       } else {
-        final newList = playlist.map((item) => item.title).toList();
+        final newList = playlist.map((item) => item).toList();
         playlistNotifier.value = newList;
       }
       _updateSkipButtons();
@@ -158,6 +190,7 @@ class PageManager {
 
   void _listenToTotalDuration() {
     _audioHandler.mediaItem.listen((mediaItem) {
+      print('Total Duration ---> ${mediaItem?.duration}');
       final oldState = progressNotifier.value;
       progressNotifier.value = ProgressBarState(
         current: oldState.current,
@@ -172,6 +205,7 @@ class PageManager {
       print('Item ---> ${mediaItem?.artUri}');
       currentSongTitleNotifier.value = mediaItem?.title ?? '';
       currentSongImageNotifier.value = mediaItem?.artUri.toString() ?? '';
+      currentSongIdNotifier.value = mediaItem?.id.toString() ?? '';
       _updateSkipButtons();
     });
   }
@@ -193,8 +227,18 @@ class PageManager {
 
   void seek(Duration position) => _audioHandler.seek(position);
 
-  void previous() => _audioHandler.skipToPrevious();
-  void next() => _audioHandler.skipToNext();
+  void previous() {
+    _audioHandler.skipToPrevious();
+    _listenToCurrentPosition();
+    _listenToBufferedPosition();
+    _listenToTotalDuration();
+  }
+  void next() {
+    _audioHandler.skipToNext();
+    _listenToCurrentPosition();
+    _listenToBufferedPosition();
+    _listenToTotalDuration();
+  }
 
   void repeat() {
     repeatButtonNotifier.nextState();

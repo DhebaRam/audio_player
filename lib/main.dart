@@ -1,7 +1,13 @@
+import 'dart:io';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_audio_waveforms/flutter_audio_waveforms.dart';
+import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:get/get.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:untitled/page_manager.dart';
 import 'package:untitled/services/service_locator.dart';
 
@@ -11,6 +17,11 @@ import 'notifiers/repeat_button_notifier.dart';
 
 Future<void> main() async {
   await setupServiceLocator();
+
+  await FlutterDownloader.initialize(
+      debug: true, // optional: set to false to disable printing logs to console (default: true)
+      ignoreSsl: true // option: set to false to disable working with http links (default: false)
+  );
   runApp(const MyApp());
 }
 
@@ -20,7 +31,31 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
-      home: HomeScreen(),
+      home: FirstScreen(),
+    );
+  }
+}
+
+class FirstScreen extends StatefulWidget {
+  const FirstScreen({super.key});
+
+  @override
+  State<FirstScreen> createState() => _FirstScreenState();
+}
+
+class _FirstScreenState extends State<FirstScreen> {
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+          child: TextButton(
+        onPressed: () {
+          Navigator.push(context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()));
+        },
+        child: const Text('Next Screen'),
+      )),
     );
   }
 }
@@ -33,7 +68,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-
   // final _audioHandler = getIt<AudioHandler>();
   // final controller = Get.put(AudioManager());
 
@@ -44,39 +78,293 @@ class _HomeScreenState extends State<HomeScreen> {
     getIt<PageManager>().init();
   }
 
-
   @override
   void dispose() {
-    getIt<PageManager>().dispose();
+    // getIt<PageManager>().dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final pageManager = getIt<PageManager>();
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Music Player')
+        appBar: AppBar(title: const Text('Music Player')),
+        body: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // const CurrentPlaylist(),
+            const Playlist(),
+            const CurrentSongImage(),
+
+            TextButton(
+                onPressed: () {
+                  getIt<PageManager>().stop();
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Close')),
+            const AudioProgressBar(),
+
+            const AudioControlButtons(),
+          ],
+        ).marginOnly(left: 20, right: 20));
+  }
+}
+
+// ignore: must_be_immutable
+class Playlist extends StatelessWidget {
+  const Playlist({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final pageManager = getIt<PageManager>();
+    return Expanded(
+      child: ValueListenableBuilder<List<MediaItem>>(
+        valueListenable: pageManager.playlistNotifier,
+        builder: (context, playlistTitles, _) {
+          return ListView.builder(
+            itemCount: playlistTitles.length,
+            itemBuilder: (context, index) {
+              return ListTile(
+                leading: ValueListenableBuilder<String>(
+                    valueListenable: pageManager.currentSongIdNotifier,
+                    builder: (_, id, __) => Stack(
+                          alignment: AlignmentDirectional.center,
+                          children: [
+                            Image.network(
+                                songList[index].artUri?.toString() ?? '',
+                                alignment: AlignmentDirectional.center,
+                                height: 50,
+                                width: 50,
+                                errorBuilder: (context, child, stackTrace) {
+                              return const Icon(Icons.ice_skating,
+                                  size: 50,
+                                  // color: id.toString() ==
+                                  //         songList[index].id.toString()
+                                  //     ? Colors.red
+                                  //     : Colors.black
+                              );
+                            }),
+                            Visibility(
+                                visible: id.toString() ==
+                                    songList[index].id.toString(),
+                                child: ValueListenableBuilder<ProgressBarState>(
+                                  valueListenable: pageManager.progressNotifier,
+                                  builder: (_, value, __) =>
+                                      ValueListenableBuilder<ButtonState>(
+                                          valueListenable:
+                                              pageManager.playButtonNotifier,
+                                          builder: (_, value1, __) {
+                                            if (value1 == ButtonState.playing) {
+                                              return PolygonWaveform(
+                                                maxDuration: Duration(
+                                                    seconds:
+                                                        value.total.inSeconds +
+                                                            1),
+                                                elapsedDuration: Duration(
+                                                    seconds: value
+                                                        .current.inSeconds),
+                                                samples: simpleList(),
+                                                height: 50,
+                                                width: 50,
+                                              );
+                                            } else if (value1 ==
+                                                ButtonState.loading) {
+                                              return Container(
+                                                margin:
+                                                    const EdgeInsets.all(8.0),
+                                                width: 32.0,
+                                                height: 32.0,
+                                                child:
+                                                    const CircularProgressIndicator(),
+                                              );
+                                            } else {
+                                              return const SizedBox.shrink();
+                                            }
+                                          }),
+                                ))
+                          ],
+                        )),
+                title: Text(playlistTitles[index].title),
+                trailing: DownloadFiles(mediaItem: playlistTitles[index].id)
+              );
+            },
+          );
+        },
       ),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          CurrentSongImage(),
-          // Image.network(pageManager.),
-          TextButton(onPressed: (){
-            getIt<PageManager>().stop();
-          }, child: const Text('Close')),
-          const AudioProgressBar(),
-          const AudioControlButtons(),
-        ],
-      ).marginOnly(left: 20, right: 20)
+    );
+  }
+}
+
+class DownloadFiles extends StatefulWidget {
+  final String mediaItem;
+  const DownloadFiles({super.key, required this.mediaItem});
+
+  @override
+  State<DownloadFiles> createState() => _DownloadFilesState();
+}
+
+class _DownloadFilesState extends State<DownloadFiles> {
+  late bool permissionReady;
+  @override
+  void initState() {
+    // TODO: implement initState
+    permissionReady = false;
+    // _prepare();
+    super.initState();
+  }
+
+  // Future<void> _prepare() async {
+  //   final tasks = await FlutterDownloader.loadTasks();
+  //
+  //   if (tasks == null) {
+  //     print('No tasks were retrieved from the database.');
+  //     return;
+  //   }
+  //
+  //   for (final task in tasks) {
+  //       if (widget.mediaItem == task.url) {
+  //         widget.mediaItem
+  //           ..taskId = task.taskId
+  //           ..status = task.status
+  //           ..progress = task.progress;
+  //       }
+  //   }
+  //
+  //   permissionReady = await _checkPermission();
+  //   if (permissionReady) {
+  //     // await _prepareSaveDir();
+  //   }
+  //
+  //   // setState(() {
+  //   //   _showContent = true;
+  //   // });
+  // }
+
+  // Future<void> _prepareSaveDir() async {
+  //   _localPath = (await _getSavedDir())!;
+  //   final savedDir = Directory(_localPath);
+  //   if (!savedDir.existsSync()) {
+  //     await savedDir.create();
+  //   }
+  // }
+  //
+  // Future<String?> _getSavedDir() async {
+  //   String? externalStorageDirPath;
+  //   externalStorageDirPath =
+  //       (await getApplicationDocumentsDirectory()).absolute.path;
+  //
+  //   return externalStorageDirPath;
+  // }
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(onPressed: () async {
+      if(permissionReady) {
+        final taskId = await FlutterDownloader.enqueue(
+          url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+          headers: {},
+          // optional: header send with url (auth token etc)
+          savedDir: '/storage/emulated/0/Download/',
+          showNotification: true,
+          // show download progress in status bar (for Android)
+          openFileFromNotification: true, // click on notification to open downloaded file (for Android)
+        );
+
+        print('taskId ==== > $taskId');
+      }else{
+        showDialog(context: context, builder: (context){
+          return Builder(
+              builder: (context) {
+                return _buildNoPermissionWarning();
+              });
+        });
+      }
+      print('File Downloaads Click');
+    }, icon: Icon(Icons.download));
+  }
+}
+
+
+
+class CurrentPlaylist extends StatelessWidget {
+  const CurrentPlaylist({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final pageManager = getIt<PageManager>();
+    return Expanded(
+      child: ValueListenableBuilder<String>(
+        valueListenable: pageManager.currentSongIdNotifier,
+        builder: (_, id, __) {
+          return ListView.builder(
+            shrinkWrap: true,
+            itemCount: songList.length,
+            itemBuilder: (context, index) {
+              return ListTile(
+                onTap: () async {
+                  // final _audioHandler = getIt<AudioHandler>();
+                  // final data = await _audioHandler
+                  //     .search('new')
+                  //     .then((value) => print(value));
+                },
+                leading: Stack(
+                  alignment: AlignmentDirectional.center,
+                  children: [
+                    Image.network(songList[index].artUri?.toString() ?? '',
+                        alignment: AlignmentDirectional.center,
+                        height: 50,
+                        width: 50, errorBuilder: (context, child, stackTrace) {
+                      return Icon(Icons.ice_skating,
+                          size: 50,
+                          color: id.toString() == songList[index].id.toString()
+                              ? Colors.red
+                              : Colors.black);
+                    }),
+                    Visibility(
+                        visible: id.toString() == songList[index].id.toString(),
+                        child: ValueListenableBuilder<ProgressBarState>(
+                          valueListenable: pageManager.progressNotifier,
+                          builder: (_, value, __) => ValueListenableBuilder<
+                                  ButtonState>(
+                              valueListenable: pageManager.playButtonNotifier,
+                              builder: (_, value1, __) {
+                                if (value1 == ButtonState.playing) {
+                                  return PolygonWaveform(
+                                    maxDuration: Duration(
+                                        seconds: value.total.inSeconds + 1),
+                                    elapsedDuration: Duration(
+                                        seconds: value.current.inSeconds),
+                                    samples: simpleList(),
+                                    height: 50,
+                                    width: 50,
+                                  );
+                                } else if (value1 == ButtonState.loading) {
+                                  return Container(
+                                    margin: const EdgeInsets.all(8.0),
+                                    width: 32.0,
+                                    height: 32.0,
+                                    child: const CircularProgressIndicator(),
+                                  );
+                                } else {
+                                  return const SizedBox.shrink();
+                                }
+                              }),
+                        ))
+                  ],
+                ),
+                title: Text(songList[index].title),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
 
 class CurrentSongImage extends StatelessWidget {
   const CurrentSongImage({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     final pageManager = getIt<PageManager>();
@@ -84,21 +372,22 @@ class CurrentSongImage extends StatelessWidget {
       valueListenable: pageManager.currentSongImageNotifier,
       builder: (_, title, __) {
         return Padding(
-          padding: const EdgeInsets.only(top: 8.0),
-          child: Image.network(title, errorBuilder: (context, stack, image){
-            return Image.network('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTvH6PyrTelDxGYwhABBdicwc8yrVSXi31CpP0GwEPwb7ykWJnNwKLfFuP6DNq2cTuvZM0&usqp=CAU');
-          })
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Image.network(title, errorBuilder: (context, stack, image) {
+              return Image.network(
+                  'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTvH6PyrTelDxGYwhABBdicwc8yrVSXi31CpP0GwEPwb7ykWJnNwKLfFuP6DNq2cTuvZM0&usqp=CAU');
+            })
 
-          // Text(title, style: const TextStyle(fontSize: 40)),
-        );
+            // Text(title, style: const TextStyle(fontSize: 40)),
+            );
       },
     );
   }
 }
 
-
 class AudioProgressBar extends StatelessWidget {
   const AudioProgressBar({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     final pageManager = getIt<PageManager>();
@@ -118,16 +407,18 @@ class AudioProgressBar extends StatelessWidget {
 
 class AudioControlButtons extends StatelessWidget {
   const AudioControlButtons({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    return const SizedBox(
       height: 60,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: const [
+        children: [
           RepeatButton(),
           PreviousSongButton(),
           PlayButton(),
+          PlayProgressButton(),
           NextSongButton(),
           ShuffleButton(),
         ],
@@ -138,6 +429,7 @@ class AudioControlButtons extends StatelessWidget {
 
 class RepeatButton extends StatelessWidget {
   const RepeatButton({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     final pageManager = getIt<PageManager>();
@@ -167,6 +459,7 @@ class RepeatButton extends StatelessWidget {
 
 class PreviousSongButton extends StatelessWidget {
   const PreviousSongButton({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     final pageManager = getIt<PageManager>();
@@ -184,6 +477,7 @@ class PreviousSongButton extends StatelessWidget {
 
 class PlayButton extends StatelessWidget {
   const PlayButton({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     final pageManager = getIt<PageManager>();
@@ -216,8 +510,107 @@ class PlayButton extends StatelessWidget {
   }
 }
 
+class PlayProgressButton extends StatelessWidget {
+  const PlayProgressButton({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final pageManager = getIt<PageManager>();
+    return ValueListenableBuilder<ButtonState>(
+      valueListenable: pageManager.playButtonNotifier,
+      builder: (_, value, __) {
+        switch (value) {
+          case ButtonState.loading:
+            return Container(
+              margin: const EdgeInsets.all(8.0),
+              width: 40.0,
+              height: 40.0,
+              child: const CircularProgressIndicator(),
+            );
+          case ButtonState.paused:
+            return ValueListenableBuilder<ProgressBarState>(
+                valueListenable: pageManager.progressNotifier,
+                builder: (_, time, __) {
+                  return Stack(
+                  alignment: AlignmentDirectional.center,
+                  children: [
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: CircularProgressIndicator(
+                        value: time.total.inSeconds == 0 ? 0 :
+                        time.buffered.inSeconds / time.total.inSeconds,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Colors.blue,
+                        ),
+                        backgroundColor: Colors.blue.withOpacity(0.15),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: CircularProgressIndicator(
+                        value: time.total.inSeconds == 0 ? 0 :
+                        time.current.inSeconds / time.total.inSeconds,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Colors.red,
+                        ),
+                        backgroundColor: Colors.blue.withOpacity(0.15),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.play_arrow),
+                      iconSize: 32.0,
+                      onPressed: pageManager.play,
+                    )
+                  ],
+                );});
+          case ButtonState.playing:
+            return ValueListenableBuilder<ProgressBarState>(
+                valueListenable: pageManager.progressNotifier,
+                builder: (_, time, __) => Stack(
+                  alignment: AlignmentDirectional.center,
+                  children: [
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: CircularProgressIndicator(
+                        value: time.total.inSeconds == 0 ? 0 :
+                        time.buffered.inSeconds / time.total.inSeconds,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Colors.blue,
+                        ),
+                        backgroundColor: Colors.blue.withOpacity(0.15),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: CircularProgressIndicator(
+                        value: time.total.inSeconds == 0 ? 0 :
+                        time.current.inSeconds / time.total.inSeconds,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Colors.red,
+                        ),
+                        backgroundColor: Colors.transparent.withOpacity(0.15),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.pause),
+                      iconSize: 32.0,
+                      onPressed: pageManager.pause,
+                    )
+                  ],
+                ));
+        }
+      },
+    );
+  }
+}
+
 class NextSongButton extends StatelessWidget {
   const NextSongButton({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     final pageManager = getIt<PageManager>();
@@ -235,6 +628,7 @@ class NextSongButton extends StatelessWidget {
 
 class ShuffleButton extends StatelessWidget {
   const ShuffleButton({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     final pageManager = getIt<PageManager>();
@@ -252,26 +646,126 @@ class ShuffleButton extends StatelessWidget {
   }
 }
 
+List<double> simpleList() {
+  return [
+    0,
+    1,
+    -1,
+    4,
+    -4,
+    1,
+    -2,
+    3,
+    1,
+    -2,
+    3,
+    2,
+    1,
+    5,
+    2,
+    -4,
+    2,
+    1,
+    -2,
+    3,
+    4,
+    -5,
+    4,
+    -2,
+    2,
+    3,
+    -4,
+    3,
+    1,
+    1,
+    1,
+    -2,
+    3,
+    -4,
+    2,
+    1,
+    -5,
+    2,
+    6,
+    3,
+    -2,
+    1,
+    -1,
+    1,
+    -2,
+    2,
+    -2,
+    2,
+    2,
+    1,
+    -4,
+    2,
+    1,
+    3,
+    -2,
+    1,
+    0
+  ];
+}
 
 
+Widget _buildNoPermissionWarning() {
+  return Center(
+    child: Container(
+      color: Colors.black38,
+      child: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              'Grant storage permission to continue',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.blueGrey, fontSize: 18),
+            ),
+          ),
+          SizedBox(height: 32),
+          TextButton(
+            onPressed: _retryRequestPermission,
+            child: Text(
+              'Retry',
+              style: TextStyle(
+                color: Colors.blue,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+          ),
+        ],
+      )
+    ),
+  );
+}
+Future<void> _retryRequestPermission() async {
+  final hasGranted = await _checkPermission();
+}
+Future<bool> _checkPermission() async {
+  if (Platform.isIOS) {
+    return true;
+  }
 
+  if (Platform.isAndroid) {
+    final info = await DeviceInfoPlugin().androidInfo;
+    if (info.version.sdkInt > 28) {
+      return true;
+    }
 
+    final status = await Permission.storage.status;
+    if (status == PermissionStatus.granted) {
+      return true;
+    }
 
+    final result = await Permission.storage.request();
+    return result == PermissionStatus.granted;
+  }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  throw StateError('unknown platform');
+}
 
 /*
 
@@ -1378,4 +1872,3 @@ class _MyHomePageState extends State<MyHomePage> {
 //   }
 // }
 */
-

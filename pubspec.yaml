@@ -34,6 +34,13 @@ dependencies:
   audio_service: ^0.18.9
   get_it: ^7.2.0
   audio_video_progress_bar: ^1.0.0
+  flutter_audio_waveforms: ^1.2.1+8
+
+  flutter_downloader: ^1.11.7
+  path_provider: ^2.1.2
+  permission_handler: ^10.0.0
+  android_path_provider: ^0.3.0
+  device_info_plus: ^8.0.0
 
 
 

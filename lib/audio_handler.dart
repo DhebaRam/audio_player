@@ -7,8 +7,13 @@ Future<AudioHandler> initAudioService() async {
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.mycompany.myapp.audio',
       androidNotificationChannelName: 'Audio Service Demo',
+      androidNotificationChannelDescription: 'Shades App',
       androidNotificationOngoing: true,
-      androidStopForegroundOnPause: true,
+      androidStopForegroundOnPause: true, // Required True
+        androidShowNotificationBadge: false,
+      androidNotificationClickStartsActivity: false,
+      androidResumeOnClick: false,
+      preloadArtwork: true
     ),
   );
 }
